@@ -1,0 +1,970 @@
+FEC Individual Contributions in Pennsylvania for 2016 Election  by Jyothi Are
+========================================================
+
+            I Choose the Federal Election Commission's Individual Financial Contributions data to explore and analyze for this project. I have downloaded the total Individual contributions for 2016 Election from the FEC website and filtered the Pennsylvania contributions from it using SQLLITE. This data set contains financial contribution transactions from 1-1-2015 to 12-31-2016. Pennsylvania is a swing state even though in more recent history it was democratic except for 2016. I want to explore if the election contributions correlate to the election results. 
+
+I would like to answer the following questions with this analysis.
+
+1.Do the Party line contributions show who would win the 2016 Election?
+
+2.Which candidate in each party received the most contributions?
+
+3.Is there any patterns that could be noted based on the employment status of the contributor?
+
+4.Which candidate have the most supporters if not the most money contributed?
+
+5.Does gender have an effect on the way contributions are made for each candidate?
+
+6.Does location have an effect on the way contributions are made?
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using in your analysis in this code
+# chunk.
+#install.packages('ggplot2', dependencies = T)
+#install.packages('gridExtra')
+#install.packages('psych')
+#install.packages("gender")
+#install.packages("genderdata", type = "source",repos = "http://packages.ropensci.org")
+#install.packages('dplyr')
+#install.packages('GGally')
+#install.packages('memisc')
+#install.packages('scales')
+##install.packages('lattice')
+#install.packages('MASS')
+#install.packages('car')
+#install.packages('RColorBrewer')
+#install.packages('ggmap')
+#install.packages("zipcode")
+
+
+
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(GGally)
+library(memisc)
+library(scales)
+library(lattice)
+library(MASS)
+library(car)
+library(RColorBrewer)
+library(psych)
+library(gender)
+library(ggmap)
+library(zipcode)
+library(aod)
+# Notice that the parameter "echo" was set to FALSE for this code chunk. This
+# prevents the code from displaying in the knitted HTML output. You should set
+# echo=FALSE for all code chunks in your file, unless it makes sense for your
+# report to show the code that generated a particular plot.
+
+# The other parameters for "message" and "warning" should also be set to FALSE
+# for other code chunks once you have verified that each plot comes out as you
+# want it to. This will clean up the flow of your report.
+
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Load_the_Data }
+# Load the Data
+#getwd()
+#setwd("C:/Users/JBasineni/R")
+
+fec_pa <- read.csv('PA_FEC_CONTRIBUTIONS.csv' , row.names = NULL, stringsAsFactors = F)
+```
+
+> Loaded the data from the csv file. Our data set of FEC Pensylvania data has 252093 contributions with 27 variables
+
+# Univariate Plots Section
+
+
+```{r echo=FALSE , message=FALSE, warning=FALSE, Univariate_Plots}
+ str(fec_pa)
+#summary(fec_pa)
+nrow(fec_pa)
+ncol(fec_pa)
+#names(fec_pa)
+```
+
+
+```{r echo=FALSE , message=FALSE, warning=FALSE, initial_plots}
+# First let us look how the data set is distributed with histograms.
+#p1 <- 
+  ggplot(aes(x = TRANSACTION_AMT), data = fec_pa) +
+  geom_histogram(bins = 100) +
+  coord_cartesian(xlim = c(-5000, 5000)) 
+#p2 <- ggplot(aes(x = 1, y = TRANSACTION_AMT), data = fec_pa) +
+ # geom_boxplot()
+
+#grid.arrange(p1, p2, ncol = 2)
+
+
+```  
+
+
+> The graphs show many outliers  and also negative contribution amounts which must be returns when it exceeds the FEC individual amounts per election. As Per FEC $2700 is the limit for individual contributions.So I will remove all amounts above that and also the negative amounts.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, rem_outliers}
+
+sum(fec_pa$TRANSACTION_AMT > 2700)
+sum(fec_pa$TRANSACTION_AMT < 0)
+#Remove the -ve amounts and the amounts  greater than 2700
+
+fec_pa <- fec_pa[fec_pa$TRANSACTION_AMT > 0 & fec_pa$TRANSACTION_AMT <= 2700, ]
+```
+Around 1290 of the contributions are removed.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, init_hist}
+
+# After cleaning the dataset let us try the distribution again
+ggplot(aes(x = TRANSACTION_AMT), data = fec_pa) +
+  geom_histogram(binwidth = 0.05) + 
+  scale_x_log10() +
+  ggtitle('Histogram of the Contribution')
+  
+tail(sort(table(fec_pa$TRANSACTION_AMT)), 5)
+summary(fec_pa$TRANSACTION_AMT)
+nrow(fec_pa)
+
+```
+
+> This gives a better perspective to see how the contributions are distributed. The maximum number of contributions made are $25 . The distribution looks fairly normal . The median contribution is $50 and the mean is $198.4 
+
+### What is the structure of your dataset?
+There are 252093 contributions and 28 variables. The variables that interest to me and I will be using are:
+
+CMTE_ID  - Committee ID           
+NAME     -       Contributor Full Name                 
+ZIP_CODE  -    Contribute zip code    
+EMPLOYER   -  Contribute employer    
+OCCUPATION  -  Contributer occupation    
+TRANSACTION_DT    -Date of contribution     
+TRANSACTION_AMT  - Contribution amount       
+CAND_ID          - Candidate election commission given ID    
+CAND_NAME        - Candidate Name     
+CAND_PTY_AFFILIATION - Candidate party affiliation      
+CAND_OFFICE         - Candidate office 
+
+### Other observations:
+.Most people contribute small amount of money.
+.The median contribution amount is $50 and highest number of people made a contribution amount of $25.
+.The democratic party receive the most number of donations.
+.Retired people make the most number of contributions.
+
+### What is/are the main feature(s) of interest in your dataset?
+ The FEC data set is downloaded from https://www.fec.gov/files/bulk-downloads/index.html.
+     I Choose the Federal Election Commissions Individual Financial Contributions data to explore and analyze for this project. I have downloaded the total Individual contributions for 2016 Election from the FEC website and filtered the Pennsylvania contributions from it using SQLLITE. This data set contains financial contribution transactions from 1-1-2015 to 12-31-2016. Pennsylvania is a swing state even though in more recent history it was democratic. I want to explore if the election contributions correlate to the election results. 
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+
+Transforming to log10 to better understand the distribution of the contribution. The distribution looks normal and the data illustrated that most donors made small amount of contributions.
+
+### Did you create any new variables from existing variables in the dataset?
+
+I will need to add more variables such as candidate first name to find the gender of the candidate , donors' gender and donors location (longitude and latitude) based on zip code.
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+
+The operations I had to perform to extract the data is mostly filtering and joining with some header tables to extract the data into a csv file to read .
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, calculate_fields}
+# Get contributor's first name 
+fec_pa$first_name <- sub(" .*", "", sub(".*, ", "", fec_pa$NAME))
+
+# Create gender dataframe
+gender_df <- gender(fec_pa$first_name, method = 'ssa', c(1920, 1997),
+                       countries = 'United States')
+
+# create gender variable
+gender_df <- unique(gender_df)
+names(gender_df)[1] <- 'first_name'
+fec_pa <- inner_join(fec_pa, gender_df, by = 'first_name')
+
+
+
+```
+
+
+The additional variables added to the data are:
+
+first_name: contributor's first name will be used to predict gender.    
+gender: contributor's gender.   
+Latitude: contributor's latitude for map creation.    
+Longitude: contributor's longitude for map creation.   
+
+After adding the variables, I wonder what the contribution distribution looks like across the parties, candidates, genders and occupations.
+
+
+#  Bivariate Plots Section
+
+```{r  echo=FALSE , message=FALSE, warning=FALSE, grp_party}
+# Create party dataframe and bar plots for party
+
+fec_pa$CAND_PTY <- ifelse(fec_pa$CAND_PTY_AFFILIATION == 'DEM' ,'DEM', ifelse(fec_pa$CAND_PTY_AFFILIATION == 'REP','REP' ,'OTHERS'))
+party_group <- group_by(fec_pa, CAND_PTY)
+fec_pa.contr_by_party <- summarize(party_group,
+                               sum_party = sum(TRANSACTION_AMT),
+                               number_of_candidate = length(unique(CAND_ID)), 
+                               mean_party = sum_party/number_of_candidate, 
+                               n = n()) 
+fec_pa.contr_by_party
+fec_pa.contr_by_party$CAND_PTY <- ordered(fec_pa.contr_by_party$CAND_PTY, 
+                                   levels = c('DEM', 'REP', 'OTHERS'))
+ggplot(aes(x = CAND_PTY, y = n, fill = CAND_PTY), data = fec_pa.contr_by_party) +
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = n),
+            data = fec_pa.contr_by_party, vjust = -0.4) +
+  xlab('Party') +
+  ylab('Number of Contributions') +
+  ggtitle('Total Number of Contributions by Party') +
+  scale_fill_manual(values = c('blue', 'red', 'gold'))
+sum(fec_pa.contr_by_party$n)
+
+```
+
+
+Total number of donations made to the presidential election were near 243K, and the Democratic party took more than 175K and almost 3 times of the number of donations made to the Republican party at 67 k. But the election results definitely do not reflect the donations. It is interesting to dig more deeper.
+
+
+```{r  echo=FALSE , message=FALSE, warning=FALSE,fig.width=12, cand_plots}
+# No of contributions made by candidate
+
+fec_pa_Pres<-subset(fec_pa, CAND_OFFICE == 'P')
+#table(fec_pa_Pres$CAND_NAME)
+
+ggplot(aes(x = CAND_NAME), data = fec_pa_Pres) + geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('candidate') +
+  ylab('Number of Contributions') +
+  ggtitle('Number of Contributions by Candidate')
+
+```
+
+There were total 23 candidates, Hillary Clinton was the leader in the number of contributions, followed by Bernard Sanders, then Ted Cruz for the Republican Party.
+Let us see who donated more  males or females
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, gen_plots}
+# Number of contributions made by gender
+gender_group <- group_by(fec_pa_Pres, gender)
+fec_pa_Pres.contr_by_gen <- summarize(gender_group, 
+                             sum_gen = sum(TRANSACTION_AMT),
+                             n_gen = n())
+fec_pa_Pres.contr_by_gen
+
+ggplot(aes(x = gender, y = n_gen, fill = gender), 
+       data = fec_pa_Pres.contr_by_gen, vjust = -0.4) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = n_gen), stat = 'identity', data = fec_pa_Pres.contr_by_gen, vjust = -0.4) +
+  xlab('Gender') +
+  ylab('Number of Contributions') +
+  ggtitle('Number of Contributions by Gender')
+```
+
+
+The female contributes are definitely more than the male contributers which is an interesting fact.I would have liked to see the range of age groups who contributed  but we do not have that data.
+
+Let us explore more if their profession effects how they donate and also between genders.
+I would also like to explore the contributions to Democrats and Republicans along the gender lines.
+
+It would also be interesting to see the time line of these donations along the party lines.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, occu_plots}
+# Create proffession datadrame 
+occupation_group <- group_by(fec_pa_Pres, OCCUPATION)
+fec_pa_Pres.contr_by_occu <- summarize(occupation_group, 
+                              sum_occu = sum(TRANSACTION_AMT), 
+                              mean_occu = mean(TRANSACTION_AMT), 
+                              n = n())
+fec_pa_Pres.contr_by_occu <- subset(fec_pa_Pres.contr_by_occu, OCCUPATION != "")
+fec_pa_Pres.contr_by_occu <- head(arrange(fec_pa_Pres.contr_by_occu,desc(n)), n = 10)
+fec_pa_Pres.contr_by_occu$occupation <- ordered(fec_pa_Pres.contr_by_occu$OCCUPATION, levels = c('RETIRED', 'NOT EMPLOYED', 'TEACHER', 'ATTORNEY', 'PROFESSOR', 'PHYSICIAN', 'CONSULTANT', 'MANAGER', 'HOMEMAKER', 'SALES'))
+
+ggplot(aes(x = occupation, y = n), data = fec_pa_Pres.contr_by_occu) +
+  geom_bar(stat = 'identity') +
+  xlab('Top 10 Occupations') +
+  ylab('Number of Donors') +
+  ggtitle('Top 10 Occupations by Number of Donors') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+Retired people make the highest no of contributions followed by un employed.
+There were also several thousands of contributions where people choose not to divulge the profession.
+But with the data reported the retired are the highest contributors.
+When you look at the mean amount donated Attorney's have the highest mean donated.
+We can safely assume attorneys do get paid more and also donate more for political parties to advocate their beliefs I guess.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, time_plots}
+
+# Transform the Transaction Date to plot the timeline
+
+fec_pa_Pres$test <- ifelse(nchar(fec_pa_Pres$TRANSACTION_DT)== 7,paste(0,fec_pa_Pres$TRANSACTION_DT,sep= ''),fec_pa_Pres$TRANSACTION_DT)
+
+fec_pa_Pres$TRANSACTION_DTy <- paste(substr(fec_pa_Pres$test,5,8),substr(fec_pa_Pres$test,1,2),substr(fec_pa_Pres$test,3,4),sep='')
+
+fec_pa_Pres$TRAN_DT <- as.Date(fec_pa_Pres$TRANSACTION_DTy,format = "%Y%m%d")
+
+summary(fec_pa_Pres$TRAN_DT)
+
+ggplot(aes(x = TRAN_DT), data = fec_pa_Pres) + geom_histogram(binwidth = 30, position = position_dodge()) +
+  xlab('Date') +
+  ylab('Number of Contributions') +
+  ggtitle('Histogram of Contribution Date')
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width =12, Contribution_by_party}
+# Contribution amounts by party
+
+party_pres_group <- group_by(fec_pa_Pres, CAND_PTY)
+fec_pa_pres.contr_by_party <- summarize(party_pres_group,
+                               sum_party = sum(TRANSACTION_AMT),
+                               number_of_candidate = length(unique(CAND_ID)), 
+                               mean_party = sum_party/number_of_candidate, 
+                               n = n()) 
+
+#Order the parties
+fec_pa_pres.contr_by_party$CAND_PTY <- ordered(fec_pa_pres.contr_by_party$CAND_PTY, 
+                                   levels = c('DEM', 'REP', 'OTHERS'))
+
+ggplot(aes(x = CAND_PTY, y = sum_party/1000, fill = CAND_PTY), data = fec_pa_pres.contr_by_party) +
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = round(sum_party/1000)),
+            data = fec_pa_pres.contr_by_party, vjust = -0.4) +
+  xlab('Party') +
+  ylab('Contribution Received (Thousands)') +
+  ggtitle('Total Contribution Amount by Party') +
+  scale_fill_manual(values = c('blue', 'red', 'gold'))
+
+ggplot(aes(x = CAND_PTY, y = mean_party/1000, fill = CAND_PTY), data = fec_pa_pres.contr_by_party) +
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = round(mean_party/1000)), 
+            data = fec_pa_pres.contr_by_party, vjust = -0.4) +
+  xlab('Party') +
+  ylab('Contribution Received (Thousands)') +
+  ggtitle('Average Contribution Received by Party') +
+  scale_fill_manual(values = c('blue', 'red', 'gold'))
+
+#sort(by(fec_pa_pres$TRANSACTION_AMT, fec_pa_pres$CAND_NAME, sum))
+
+ggplot(aes(x = CAND_NAME, y = TRANSACTION_AMT/1000), data = fec_pa_Pres) + 
+  geom_bar(stat = 'identity') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('candidate') +
+  ylab('Contribution Amount (Thousands)') +
+  ggtitle('Contribution Amount by Candidate')
+
+sum(fec_pa_Pres$TRANSACTION_AMT)
+
+
+
+```
+
+
+The total contribution amount made to the presidential candidates grossed over 17 million US dollars in Pennsylvania. We can easily see where the money went.
+
+Democratic party takes the majority share of donor contribution. Democratic party got more than 10.3 million US dollars in total, where as Republicans received 6.7 millions. As there were 17  Republican candidates and only 5 Democratic candidates the average contribution amount of Democrats is 4 times the average of Republicans.
+
+Same with the number of contributions, Hillary Clinton received the most contribution amount followed by Bernard Sanders then Donald Trump.
+
+The contributions makes sense as recently more often than not the state went democratic but despite the contributions it is very interesting to note that Republicans and TRUMP won the state despite the story the contributions tell. It definitely causes one to wonder about the relation between contributions and actual votes.
+
+To see contribution patterns between parties and candidates, I start with box plots
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, party_boxplots}
+# Boxplots to check the median contribution amount by party
+ggplot(aes(x = CAND_PTY, y = TRANSACTION_AMT, fill = CAND_PTY), data = fec_pa_Pres) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0, 2700)) +
+  xlab('party') +
+  ylab('Contribution Amount') +
+  ggtitle('Boxplot for Contribution Amount by Party') +
+  scale_fill_manual(values = c('blue', 'gold', 'red'))
+```
+
+However, it is very hard to compare contributions among all parties at a glance because there are so many outliers. I will apply log scale and remove the 'others' party from now on because my analysis is focused on the Democratic party and the Republican party.
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, amtparty_boxplots}
+
+
+ggplot(aes(x = CAND_PTY, y = TRANSACTION_AMT, fill = CAND_PTY), data = subset(fec_pa_Pres, CAND_PTY !=  'OTHERS'))+
+  geom_boxplot() +
+  scale_y_log10() +
+  xlab('party') +
+  ylab('Contribution Amount') +
+  ggtitle('Boxplot for Contribution Amount(Log_10) by Party') +
+  scale_fill_manual(values = c('blue', 'red'))
+
+```
+
+Although the Republican has the higher median and mean, the Democrat has more outliers on the higher end of the contribution amount where as Republicans have more outliers in the lower end. This probably is a likely indication of the election results.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE,fig.width = 12, candind_boxplots}
+#Box plot analysis by each candidate
+
+by(fec_pa_Pres$TRANSACTION_AMT, fec_pa_Pres$CAND_NAME, summary)
+
+ggplot(aes(x = CAND_NAME, y = TRANSACTION_AMT , fill = CAND_PTY), data = subset(fec_pa_Pres, CAND_PTY !=  'OTHERS')) + 
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('candidate') +
+  ylab('Contribution Amount') +
+  ggtitle('Contribution Amount by Candidate')+
+  scale_fill_manual(values = c('blue', 'red'))
+
+```
+
+ On the democratic side Hillary Clinton and Bernie Sanders has the lowest median and mean compared to all others including Republicans.
+ On the Republican side it is interesting to not Ben Carson ,Ted Cruz,Paul Rand,Marco Rubio and Trump are among the ones with relative lower Medians. Ben Carson has the lowest median of all Republicans and also interesting is to note TRUMP has significantly higher median indicating that his donors are on the higher end.
+ 
+The summary and the box plot analysis definitely sheds more light on the Contributions.
+Hillary Clinton has the lowest median and mean out of all and also many outliers on the higher end. This does show that she has contributions on both end of the spectrum even though the Election results doesn't show that. 
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, fig.width = 12,contr_cand_plots}
+# Create candidate dataframe and bar plots for candidate 
+can_group <- group_by(subset(fec_pa_Pres, CAND_PTY !=  'OTHERS'), CAND_PTY, CAND_NAME)
+fec_pa_pres.contr_by_can <- summarize(can_group, 
+                             sum_can = sum(TRANSACTION_AMT), 
+                             mean_can = mean(TRANSACTION_AMT),
+                             n = n())
+fec_pa_pres.contr_by_can <- arrange(fec_pa_pres.contr_by_can, sum_can)
+
+fec_pa_Pres.contr_top_can <- head(arrange(fec_pa_pres.contr_by_can,desc(sum_can)), n = 5)
+#fec_pa_pres.contr_by_can
+#fec_pa_Pres.contr_top_can
+
+ggplot(aes(x = CAND_NAME, y = sum_can/1000), data = fec_pa_pres.contr_by_can) +
+  geom_bar(aes(fill = CAND_PTY), stat = 'identity') +
+  scale_y_continuous(limits = c(0, 23000)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('Candidate') +
+  ylab('Contribution Received (Thousands)') +
+  ggtitle('Contribution Received by Candidate') +
+  scale_fill_manual(values = c("blue", "red"))
+
+# Create candidate_party dataframe
+can_party <- left_join(fec_pa_pres.contr_by_can, fec_pa_pres.contr_by_party, by = 'CAND_PTY')
+
+ggplot(aes(x = CAND_NAME, y = sum_can/sum_party*100), data = can_party) +
+  geom_bar(aes(fill = CAND_PTY), stat = 'identity') +
+  geom_text(stat='identity', aes(label = paste(round(100*sum_can/sum_party,0),'%')), 
+            size=3, data = can_party, vjust = -0.4)+
+  scale_y_continuous(limits = c(0, 100)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('Candidate') +
+  ylab('Percentage of Donation') +
+  ggtitle('Percentage of Contribution Received by Candidate from their Own Party') +
+  scale_fill_manual(values = c("blue", 'red'))
+
+
+```
+
+
+As the percentages indicate majority of the donations were received by only few candidates. For Democratic party, Hillary Clinton and Bernard Sanders take almost 99% of all donations to the Democratic party, and of which, 78% went to Hillary Clinton. For the Republican party, Donald Trump led the way taking 21% of all donations to the Republican party. Donald Trump, Marco Rubio, Ted Cruz, John Kasich,Ben Carson all together taking 75% of all donations to the Republican party, the remaining 25% were shared by the other 12 Republican candidates.
+From the above charts, we are able to see who were the top candidates in each party in Pennsylvania. 
+
+We have seen earlier that women made 14% more number of contributions than men. Is that the same for the amount of money donated? And do women tend to donate more to the liberals and/or to woman candidate?
+
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, contr_gen_plots}
+ggplot(aes(x = gender, y = TRANSACTION_AMT, fill = gender), data = fec_pa_Pres) +
+  geom_boxplot() +
+  xlab('gender') +
+  ylab('Contribution Amount') +
+  ggtitle('Contribution Amount by Gender Boxplot') +
+  coord_cartesian(ylim = c(0, 100))
+
+by(fec_pa_Pres$TRANSACTION_AMT, fec_pa_Pres$gender, summary)
+
+```
+
+
+
+
+
+On average, male donated $133.4 and female donated $87.17, there is a 53% difference between genders. Female contributed much less than male when we look at median, mean and third quartile.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, amt_gen_plots}
+# Create gender dataframe
+gender_group <- group_by(subset(fec_pa_Pres, CAND_PTY !=  'OTHERS'), gender)
+fec_pa_pres.contr_by_gen <- summarize(gender_group, 
+                             sum_gen = sum(TRANSACTION_AMT),
+                             n = n())
+fec_pa_pres.contr_by_gen
+
+
+ggplot(aes(x = gender, y = sum_gen/1000, fill = gender), 
+       data = fec_pa_pres.contr_by_gen) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = sum_gen/1000), stat = 'identity', data = fec_pa_pres.contr_by_gen, vjust = -0.4) +
+  xlab('Gender') +
+  ylab('Contribution Amount (Thousands)') +
+  ggtitle('Contribution Amount by Gender')
+
+
+```
+
+
+There is a significant difference of 33% between male and female contributions. Even though the no of contributions show that female contributions are more than male the amounts are definitely on the lower end when compared to male contribution amount.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, gen_cand_plots}
+# Create gender_to_top_candidate dataframe for bar plot
+#fec_pa_Pres.contr_top_can
+fec_pa_Pres.gen_to_top_candidate <- fec_pa_Pres %>%
+  filter(fec_pa_Pres$CAND_NAME %in% fec_pa_Pres.contr_top_can$CAND_NAME) %>%
+  group_by(CAND_NAME, gender) %>%
+  summarize(sum_gen_can = sum(TRANSACTION_AMT))
+
+#fec_pa_Pres.gen_to_top_candidate
+
+ggplot(aes(x = CAND_NAME, y = sum_gen_can/1000, fill = gender), 
+       data = fec_pa_Pres.gen_to_top_candidate) +
+  geom_bar(stat = 'identity', position = position_dodge(width = 1)) +
+  xlab('Candidate') +
+  ylab('Contribution Amount (Thousands)') +
+  ggtitle('Contribution Amount to Top Candidate by Gender') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+  The above plot highlights that Hillary Clinton received highest contribution amount from women even though over all it shows women contributed less than men for the 2016 elections.
+
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, occu_gen_plots}
+ggplot(aes(x = occupation, y = sum_occu/1000), data = fec_pa_Pres.contr_by_occu) +
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = round(sum_occu/1000)), data = fec_pa_Pres.contr_by_occu, vjust = -0.4) +
+  xlab('Top 10 Occupations') +
+  ylab('Total Contribution Amount (Thousands)') +
+  ggtitle('Total Contribution Amount From Top 10 Occupations') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(aes(x = occupation, y = round(mean_occu,2)), data = fec_pa_Pres.contr_by_occu) + 
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = round(mean_occu,2)), data =fec_pa_Pres.contr_by_occu, vjust = -0.4) +
+  xlab('Top 10 Occupations') +
+  ylab('Average Contribution Amount') +
+  ggtitle('Average Contributions From the Top 10 Occupations') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, top_occu_plots}
+# Create top_occupation datafram 
+top_occu_df <- filter(fec_pa_Pres, OCCUPATION %in% fec_pa_Pres.contr_by_occu$OCCUPATION)
+
+ggplot(aes(x = OCCUPATION, y = TRANSACTION_AMT), data = top_occu_df) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('Top 10 Occupations') +
+  ylab('Donations Amount') +
+  ggtitle('Donations Made by Top 10 Occupations')
+#Since there are too many outliers comparing the mean and median is tough.
+by(top_occu_df$TRANSACTION_AMT, top_occu_df$OCCUPATION, summary)
+
+ggplot(aes(x = OCCUPATION, y = TRANSACTION_AMT), data = top_occu_df)  +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  coord_cartesian(ylim = c(0, 200)) +
+  xlab('Top 10 Occupations') +
+  ylab('Donations Amount') +
+  ggtitle('Donations Made by Top 10 Occupations Excl. Outliers')
+
+```
+
+
+This looks much better. After I filtered out outliers (donations that are extreme high), a box plot confirms my above observation. The median contribution of teacher, homemaker and unemployed are relatively low.
+
+It is still apparent that attorney made the large contribution with the highest average donation and the largest variability. Some of them contributed 4 times of their respective median.
+
+# Bivariate Analysis
+
+### Talk about some of the interesting findings you observed in this part of the investigation.
+.Most of the total contribution in Pennsylvania  (75%) went toward the Democratic party.
+.There were 5 Democratic candidates and 17 Republican candidates. Therefore, there is even bigger difference when we compare average amount between parties.
+.Within each party, the majority of contributions are received by a few candidates.
+.In Pennsylvania there are more female donors than male donors, but female donate much less than male on average.
+.In Pennsylvania, majority of the contributions from female donors went toward Democratic party and/or woman candidate.
+.Retired people contribute the most in total amount.
+.Lawyers had the highest average contribution amount and greatest interquartile range, unemployed people have the lowest average contribution amount and one of the smallest interquartile ranges.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+Surprisingly, homemakers had the 2nd highest average contribution amount, but the median contribution in this group is among the lowest. It suggests that the distribution of the data is right skewed with many outliers. Also my presumption is that most of the homemakers are women.
+
+### What was the strongest relationship you found?
+
+Men had higher donation amount than women even though the number of contributions from Women are higher than men
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE,  fig.width = 12, time_cand_plots}
+fec_pres_pa.top_candidate <- fec_pa_Pres %>%
+ filter(fec_pa_Pres$CAND_NAME %in% fec_pa_Pres.contr_top_can$CAND_NAME) %>%
+  group_by(CAND_NAME,TRAN_DT ) %>%
+  summarize(n = n(), total = sum(TRANSACTION_AMT))
+
+#fec_pres_pa.top_candidate
+
+ggplot(aes(x = TRAN_DT, y = total/1000, color = CAND_NAME), data = fec_pres_pa.top_candidate ) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+  xlab('Date') +
+  ylab('Contribution Amount (Thousands)') +
+  ggtitle('Time Series of Contribution Amount by Candidate')
+
+ggplot(aes(x = TRAN_DT, y = n, color = CAND_NAME), data = fec_pres_pa.top_candidate) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+  xlab('Date') +
+  ylab('Number of Contributions') +
+  ggtitle('Time Series of Number of Contributions by Candidate')
+```
+
+
+We know that Hillary Clinton raised the most money and had the most supporters in Pensylvania. But is this always true throughout the campaign process? When I look at above 2 graphs, I notice 2 things:
+1.Bernard Sanders actually raised more money than Hillary Clinton starting from January 2016 and lasted for a few months almost through May 2016
+2.Bernard Sanders actually had more supporters than Hillary Clinton from January 2016 onward until June 2016 when he announced to endorse Hillary Clinton that broke his supporters' hearts.
+
+This  does pose an interesting question about what would have happened if Bernie sanders ran for president instead of Hillary.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 12, time_amt_plots}
+ggplot(aes(x = TRAN_DT, y = total, color = CAND_NAME), data = fec_pres_pa.top_candidate) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+  xlab('Date') +
+  ylab('Contribution Amount') +
+  ggtitle('Time Series of Contribution Amount(Log_10) by Candidate') +
+  facet_wrap(~ CAND_NAME) +
+  scale_y_log10() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, fig.width = 12, time_gen_plots}
+#Comparing the genderwise contribution amounts for each candidate for the top 5 candidates.
+
+fec_pres_pa.top_gen_candidate <- fec_pa_Pres %>%
+ filter(fec_pa_Pres$CAND_NAME %in% fec_pa_Pres.contr_top_can$CAND_NAME) %>%
+  group_by(CAND_NAME,gender,TRAN_DT ) %>%
+  summarize(n = n(), total = sum(TRANSACTION_AMT))
+
+ggplot(aes(x = TRAN_DT, y = total, color = gender), data = fec_pres_pa.top_gen_candidate) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+  xlab('Date') +
+  ylab('Contribution Amount') +
+  ggtitle('Time Series of Contribution Amount(Log_10) by Candidate and Gender') +
+  facet_wrap(~ CAND_NAME) +
+    scale_y_log10() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE,fig.width = 12, time_no_plots}
+#Comparing the genderwise no of contributions for each candidate for the top 5 candidates.
+
+ggplot(aes(x = TRAN_DT, y = n, color = gender), data = fec_pres_pa.top_gen_candidate) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+  xlab('Date') +
+  ylab('No of Contributions') +
+  ggtitle('Time Series of No of Contribution (Log_10) by Candidate and gender') +
+  facet_wrap(~ CAND_NAME) +
+    scale_y_log10() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+
+From the above Individual graphs of no of contributions and Contribution amounts gender wise are compared for all the top candidates.
+Only Hillary Clinton as a female candidate garnered more contributions from females. All the others have male contributions higher . 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, geogrphic_plots}
+# Create a new dataframe for map
+
+
+#fec_pa_Pres <- fec_pa_Pres[, -c(38:49)] to delete columns
+
+fec_pa_Pres$zip <-  substr(as.character(fec_pa_Pres$ZIP_CODE),1,5)
+
+fec_pa_Pres$zip  <- ifelse(nchar(fec_pa_Pres$zip) != 5,
+                          '19606',fec_pa_Pres$zip)
+fec_pa_Pres$zip  <- ifelse(substr(fec_pa_Pres$zip,1,1) != 1,
+                          '19606',fec_pa_Pres$zip)
+data(zipcode)
+fec_pa_Pres <- left_join(fec_pa_Pres, zipcode, by = 'zip')
+
+
+lat <- fec_pa_Pres$lattitude
+lon <- fec_pa_Pres$longitude
+party <- fec_pa_Pres$CAND_PTY
+
+# <- data.frame(fec_pa_Pres$CAND_PTY,fec_pa_Pres$latitude,fec_pa_Pres$longitude)
+
+pa_map <- data.frame(fec_pa_Pres$CAND_PTY,fec_pa_Pres$latitude,fec_pa_Pres$longitude)
+colnames(pa_map) <- c('party', 'lat', 'lon')
+pa_map <- subset(pa_map, pa_map$party != 'OTHERS')
+
+# make_bbox function to get a zoom level
+sbbox <- make_bbox(lon = pa_map$lon, lat = pa_map$lat, f = 0.01)
+
+my_map <- get_map(location = sbbox, maptype = "roadmap", scale = 2, color="bw", zoom = 7)
+
+ggmap(my_map) +
+  geom_point(data=pa_map, aes(x = lon, y = lat, color = party), 
+             size = 2, alpha = 0.2) +
+  xlab('Longitude') +
+  ylab('Latitude') +
+  ggtitle('Location of Donors') +
+  scale_y_continuous(limits = c(39, 43)) +
+  scale_x_continuous(limits = c(-80, -74)) +
+  scale_color_manual(breaks=c("DEM", "REP"), values=c("blue","red"))
+```
+
+
+Now lets look at where the contributions came in the state.
+The map looks predominantly blue interspersed with red. The urban places like Philadelphia 
+and Pittsburgh are more blue than the country side which fits with the general view that more liberals are the Urbanites.
+
+# Predictive Modeling
+
+In this section, I will make an attempt to apply logistic regression method to predict a donor's contributing party giving his (or her) location (latitude, longitude), gender and donation amount. I will be taking the following steps:
+1.Subset the original data set selecting the relevant columns only and make sure to filter out the 'other' party.
+2.Clean and format data.
+3.Remove negative sign in longitude for calculations.
+4.Create a model to predict a donor's contributing party based on gender, latitude, longitude and contribution receipt amount.
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, pred_model}
+# Cleaning and formating data
+data <- subset(fec_pa_Pres,select=c(15, 35, 32, 42, 43))
+data <- filter(data, CAND_PTY %in% c('DEM', 'REP'))
+data$CAND_PTY <- as.factor(data$CAND_PTY)
+data$gender <- as.factor(data$gender)
+# Remove negative sign in longitude
+data$longitude <- abs(data$longitude)
+
+nrow(data)
+# Split data into two chunks
+train <- data[1:125000,]
+test <- data[125001:156527,]
+# fit the model
+model <- glm(CAND_PTY ~.,family=binomial(link='logit'),data=train)
+summary(model)
+
+```
+
+  First we see the deviance residuals, which are a measure of model fit. This part of output shows the distribution of the deviance residuals for individual cases used in the model. Below we discuss how to use summaries of the deviance statistic to assess model fit.
+    For every one unit change in amount of contribution , contributing to Republican increase by 0.0008
+    The male voter is  inclined to donate to a republican than a democrat compared to a female by 0.7 
+     For a one unit increase in latitude, the log odds of contributing to Republican increases by 0.31
+     For a one unit increase in abs(longitude), the log odds of contributing to Republican increases by 0.11.
+
+Next let us use the confint function to obtain confidence intervals for the coefficient estimates. 
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, logit_analysis}
+## CIs using profiled log-likelihood
+confint(model)
+confint.default(model)
+
+## odds ratios only
+exp(coef(model))
+
+## odds ratios and 95% CI
+exp(cbind(OR = coef(model), confint(model)))
+
+```
+Now we can say that for a one unit increase in amount contributed, the odds of  contributing to Republican increase  by a factor of 1.0008
+
+
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, asses_model}
+#Assessing the predictive Ability of the Model
+# Predict on the test data
+
+model_pred_prob <- predict(model, test, type='response')
+# Change probility to class of direction
+model_pred_direction <- rep('DEM', nrow(test))
+# Set decision boundry 0.5
+model_pred_direction[model_pred_prob > 0.5] = 'REP'
+# Create confusion matrix
+table(model_pred_direction, test$CAND_PTY)
+# Compute and print accuracy
+misClasificError <- mean(model_pred_direction != test$CAND_PTY)
+misClasificError
+print(paste('Accuracy',1-misClasificError))
+
+```
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, devian}
+#difference in deviance for the two models (i.e., the test statistic) 
+with(model, null.deviance - deviance)
+# To find the degrees of freedom
+
+with(model, df.null - df.residual)
+# To find the p-value
+with(model, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = FALSE))
+
+logLik(model)
+```
+
+The chi-square of 7109.993 with 4 degrees of freedom and an associated p-value of less than 0.001 tells us that our model as a whole fits significantly better than an empty model.
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation?
+  Bernie Sanders had more number of supporters than any other candidate until June 2016 but if you consider the contribution amount during the same time period Hillary has raised more This does show that Hillary had big money donors while Bernie Sanders has more supporters. 
+  On the republican side Rubio and Cruz were leading in no of supporters and contribution amounts until they dropped out.
+
+### Were there any interesting or surprising interactions between features?
+
+This poses an interesting speculation of how the election would have gone if Bernie was the candidate instead of Hillary?
+Moreover based on the number of contributions and the contribution amounts Pennsylvania comes up as a blue state but had gone for Republicans in the 2016 elections.  
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the \
+strengths and limitations of your model.?
+
+I have created the logit model with the PA election data set for the predictive data analysis.
+
+Logistic regression, also called a logit model, is used to model dichotomous outcome variables. In the logit model the log odds of the outcome is modeled as a linear combination of the predictor variables.
+
+Based on the p- value and the test statistics the model is a good fit .
+
+
+# Final Plots and Summary
+
+###  Percentage Contribution for each candidate by their own party
+```{r echo=FALSE, message=FALSE, warning=FALSE,  fig.width = 12, Plot_One}
+# Ordered the previous DF with party and contribution amount desc
+can_party<- can_party[with(can_party, order(CAND_PTY, -sum_can)), ]
+can_party
+#Created a new factor CAND_NM to maintain the ordered levels
+can_party$CAND_NM <- ordered(can_party$CAND_NAME, levels = c(can_party$CAND_NAME))
+ggplot(aes(x = CAND_NM, y = sum_can/sum_party*100), data = can_party) +
+  geom_bar(aes(fill = CAND_PTY), stat = 'identity') +
+  geom_text(stat='identity', aes(label = paste(round(100*sum_can/sum_party,0),'%')), 
+            size=3, data = can_party, vjust = -0.4)+
+  scale_y_continuous(limits = c(0, 100)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('Candidate') +
+  ylab('Percentage of Donation') +
+  ggtitle('Percentage of Contribution Received by Candidate from their Own Party') +
+  scale_fill_manual(values = c("blue", 'red'))
+
+```
+
+ In Pensylvania, the financial donations to the presidential campaign went to the democrats by large. Especially in Democrats, 99% of the donations for Democrat went to two candidates Hillary Clinton and Bernie Sanders. The Republican donations are a little more evenly distributed atleast in the top 3 candidates.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+
+occu_contri_amt<- fec_pa_Pres.contr_by_occu[with(fec_pa_Pres.contr_by_occu, order(-sum_occu)), ]
+
+#occu_contri_amt
+occu_contri_amt$occupation <- ordered(occu_contri_amt$occupation, levels = c(occu_contri_amt$OCCUPATION))
+
+fec_pa_Pres.contr_by_occu$occupation <- ordered(fec_pa_Pres.contr_by_occu$occupation, levels = c(fec_pa_Pres.contr_by_occu$OCCUPATION))
+#plot by contribution amount
+#fec_pa_Pres.contr_by_occu
+p1 = ggplot(aes(x =occu_contri_amt$occupation , y = sum_occu/1000), data = occu_contri_amt) +
+  geom_bar(stat = 'identity') +
+  geom_text(stat = 'identity', aes(label = round(sum_occu/1000)), data = occu_contri_amt, vjust = -0.4) +
+  xlab('Top 10 Occupations') +
+  ylab('Total Contribution Amount (Thousands)') +
+  ggtitle('Total Contribution Amount From Top 10 Occupations') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#plot by contribution numbers
+p2 = ggplot(aes(x = occupation, y = n), data = fec_pa_Pres.contr_by_occu) +
+  geom_bar(stat = 'identity') +
+  xlab('Top 10 Occupations') +
+  ylab('Number of Donors') +
+  ggtitle('Top 10 Occupations by Number of Donors') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+grid.arrange(p1,p2,ncol = 1)
+```
+
+When we compare the presidential contributions by occupation in Pensylvania we see that the majority of the number of contributions have been made by people who do not have a traditional occupation. And even the amount of total contributions also is mostly donated by retired people. This is an intresting fact and indicates as if retired people take more intrest in politics.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 12,Plot_Three}
+
+
+p1 = ggplot(aes(x = TRAN_DT, y = total/1000, color = CAND_NAME), data = fec_pres_pa.top_candidate ) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+    scale_y_log10() +
+  xlab('Date') +
+  ylab('Contribution Amount (Thousands)') +
+  ggtitle('Time Series of Contribution Amount by Candidate')
+
+p2 = ggplot(aes(x = TRAN_DT, y = n, color = CAND_NAME), data = fec_pres_pa.top_candidate) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = 'loess') +
+    scale_y_log10() +
+  xlab('Date') +
+  ylab('Number of Contributions') +
+  ggtitle('Time Series of Number of Contributions by Candidate')
+
+grid.arrange(p1, p2, ncol = 1)
+
+
+```
+
+The above graphs highlight the contribution amounts and no of contributions received by the top 5 candidates in both parties. It is very intresting to note the final candidates Hillary and Trump haven't been in the lead in receiving contributions until the others dropped in their respective party.
+
+
+# Reflection
+
+
+### Challenges and Struggles
+
+The Pensylvania  2016 presidential campaign contributions data contains over 252093 entries from January 2015 until December 2016. Throughout the analysis, I had to deal with several issues:
+.The original data set did not contain gender information, to analyze the relationship between gender and donations, I added gender column using R's gender package which used to predict gender from donor's first name.
+.To see a better picture of donors' geographic location, I added latitude and longitude columns using zip code package and I was able to create a map using ggmap after that.
+.The contribution date gave me a hard time when I had to convert the transaction_dt field from integer to char to a date.
+.I chose to omit negative contributions and contributions that exceed $2700 because of the Contribution Limits for 2015-2015 Federal Elections. However, I may have omitted big dollar donors. So use the data with caution.
+.I created a logistic aggression model in an attempt to predict donors' contributing party based on other characteristics. However, I am not sure it is a good way to predict an individual's contribution party.
+.I am not familiar with ggmap and logistics regression, and spent a lot of time on them.
+
+
+### Success
+.The ggplot2 and dplyr packages are the most important packages for this project. I also learned gender and zipcode packages and found they are powerful.
+.I learned a lot of new things throughout this project. Thanks to ggmap quick start, R-bloggers and Logistic Regression in R tutorial to make my project possible. It was a great experience.
+
+
+### Conclusion
+
+By analyzing Pensylvania's financial contribution data, I found several interesting trends:
+.It is no doubt that Pensylvania  is a swing state.The contributions by number and amounts suggest it is a blue state but the election results contradict that fact.
+.Few candidates collected the most donations.
+.Female donors tend to donate more to liberals and/or to female candidate.
+.The retired people are the largest contribution group by no of donations and the total amount. 
+It is very intresting to note that the top two occupations by number of contributions is Retired and unemployed.
+.Bernard Sanders gained more popularity than Hillary Clinton until he gave up his run.
+Donald Trump also haven't raised as much as Ted Cruz and Rubio until they dropped off. 
+This hints that at least Pennsylvania voters didn't get their favorite candidate as the primary winner in both parties
+
+
+### Future Work
+
+It would be interesting to see how the contributions are after the elections in Pennsylvania.
+I have only analyzed the contributions to presidential candidates for all parties. And also if we can analyze the contributions with age it would really provide some insights into how each age group leans to vote.
+It would also be great to compare the 2016 presidential elections with at least 2012 elections in respect to the contributions by party and gender.
+
+
+
