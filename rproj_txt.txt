@@ -1,0 +1,7 @@
+https://rpubs.com/susan_li/255437
+
+https://stats.idre.ucla.edu/r/dae/logit-regression/
+
+https://www.theanalysisfactor.com/r-glm-model-fit/
+
+https://classic.fec.gov/disclosurep/pnational.do
